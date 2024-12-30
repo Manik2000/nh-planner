@@ -7,8 +7,14 @@ from playwright.sync_api import sync_playwright
 from tqdm import tqdm
 
 from src.constants import MovieDetails, MovieLink
-from src.db import (get_movie_id, insert_movie, insert_scraped_date,
-                    insert_screenings, is_scraped, movie_exists_in_db)
+from src.db import (
+    get_movie_id,
+    insert_movie,
+    insert_scraped_date,
+    insert_screenings,
+    is_scraped,
+    movie_exists_in_db,
+)
 
 
 BASE_LINK = "https://www.kinonh.pl/"
@@ -85,7 +91,7 @@ def extract_movie_details(move_title: str, html_content: str) -> MovieDetails:
 
 def scrape_and_load_movies_into_db(days_ahead: int = 12) -> None:
     scrape_dates = [
-        time.strftime("%d-%m-%Y", time.localtime(time.time() + 60 * 60 * 24 * i))
+        time.strftime("%Y-%m-%d", time.localtime(time.time() + 60 * 60 * 24 * i))
         for i in range(1, days_ahead + 1)
     ]
     with sync_playwright() as p:
@@ -93,7 +99,8 @@ def scrape_and_load_movies_into_db(days_ahead: int = 12) -> None:
         page = browser.new_page()
 
         for date in tqdm(scrape_dates):
-            page.goto(f"{PROGRAMME_LINK}{date}")
+            DD_MM_YYYY = "-".join(date.split("-")[::-1])
+            page.goto(f"{PROGRAMME_LINK}{DD_MM_YYYY}")
             if is_scraped(date):
                 continue
             time.sleep(random.randint(2, 4))

@@ -1,13 +1,13 @@
 import os
 import sqlite3
 from contextlib import contextmanager
-from typing import Generator
+from typing import Any
 
 from src.constants import DB_PATH, MovieDetails
 
 
 @contextmanager
-def get_cursor() -> Generator[sqlite3.Cursor]:
+def get_cursor():
     conn = sqlite3.connect(DB_PATH)
     try:
         c = conn.cursor()
@@ -34,16 +34,16 @@ CREATE_MOVIES_SCREENINGS_TABLE = """
     CREATE TABLE IF NOT EXISTS movies_screenings (
         id INTEGER PRIMARY KEY,
         movie_id INTEGER,
-        date TIMESTAMP,
+        screening_date TEXT,
         FOREIGN KEY(movie_id) REFERENCES movies(id)
-        UNIQUE(movie_id, date)
+        UNIQUE(movie_id, screening_date)
     );
 """
 
 CREATE_SCRAPED_DATES_TABLE = """
     CREATE TABLE IF NOT EXISTS scraped_dates (
         id INTEGER PRIMARY KEY,
-        date DATE
+        scraped_date TEXT
     );
 """
 
@@ -58,7 +58,7 @@ def init_db() -> None:
 
 def is_scraped(date: str) -> bool:
     with get_cursor() as c:
-        c.execute("SELECT * FROM scraped_dates WHERE date = ?", (date,))
+        c.execute("SELECT * FROM scraped_dates WHERE scraped_date = ?", (date,))
         return c.fetchone() is not None
 
 
@@ -92,11 +92,17 @@ def get_movie_id(title: str) -> int:
 def insert_screenings(movie_id: int, dates: list[str]) -> None:
     with get_cursor() as c:
         c.executemany(
-            "INSERT INTO movies_screenings (movie_id, date) VALUES (?, ?)",
+            "INSERT INTO movies_screenings (movie_id, screening_date) VALUES (?, ?)",
             [(movie_id, date) for date in dates],
         )
 
 
 def insert_scraped_date(date: str) -> None:
     with get_cursor() as c:
-        c.execute("INSERT INTO scraped_dates (date) VALUES (?)", (date,))
+        c.execute("INSERT INTO scraped_dates (scraped_date) VALUES (?)", (date,))
+
+
+def execute_sql_query(sql_query: str) -> list[tuple[Any]]:
+    with get_cursor() as c:
+        c.execute(sql_query)
+        return c.fetchall()
