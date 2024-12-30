@@ -102,7 +102,7 @@ def insert_scraped_date(date: str) -> None:
         c.execute("INSERT INTO scraped_dates (scraped_date) VALUES (?)", (date,))
 
 
-def execute_sql_query(sql_query: str) -> list[tuple[Any]]:
+def execute_sql_query(sql_query: str, params: tuple[Any]) -> list[tuple[Any]]:
     with get_cursor() as c:
-        c.execute(sql_query)
+        c.execute(sql_query, params)
         return c.fetchall()
