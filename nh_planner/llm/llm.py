@@ -1,7 +1,5 @@
-from ollama import chat, ChatResponse
-
+from ollama import ChatResponse, chat
 from src.db import execute_sql_query
-
 
 SQL_QUERY_GENERATOR_PROMPT = """
     Given these SQL tables:
