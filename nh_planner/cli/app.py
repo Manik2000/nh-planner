@@ -10,7 +10,7 @@ from nh_planner.cli.utils import (ValidationCheck, create_movie_dicts,
                                   validate_title)
 from nh_planner.db.data_models import MovieCard, MovieFilterResult
 from nh_planner.db.database import DatabaseManager
-from nh_planner.db.dynamic_scapper_2 import scrape_and_load_movies_into_db
+from nh_planner.db.dynamic_scrapper import scrape_and_load_movies_into_db
 from nh_planner.db.queries import SELECT_MOVIES_WITH_LESS_THAN_N_SCREENINGS
 from nh_planner.db.utils import (DateFilter, DurationFilter, Filter,
                                  TitleFilter, build_filter_query)

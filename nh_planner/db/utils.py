@@ -4,7 +4,7 @@ from pydantic import BaseModel, Field
 
 
 class TitleFilter(BaseModel):
-    title: tuple[str]
+    title: list[str]
 
 
 class DurationFilter(BaseModel):
