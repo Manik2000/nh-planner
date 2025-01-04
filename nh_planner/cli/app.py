@@ -40,8 +40,9 @@ def cli(ctx):
 @cli.command()
 @click.pass_obj
 @click.argument("days_ahead", type=int, default=12)
-@click.option("--force", "-f", is_flag=True, help="Force refresh")
+@click.option("--force", "-f", is_flag=True, help="Force refresh even if data for given date exists")
 def refresh(cli_obj, days_ahead, force):
+    """Scrape movie data from cinema website and load into database"""
     asyncio.run(scrape_and_load_movies_into_db(days_ahead, force_scrape=force))
     movies_id_for_embedd = cli_obj.execute_query(GET_MOVIE_ID_FOR_EMDED)
     movie_ids = [movie[0] for movie in movies_id_for_embedd if movie[1]]
@@ -73,6 +74,7 @@ def refresh(cli_obj, days_ahead, force):
     help="Search type for title and director",
 )
 def filter(cli_obj, start_date, end_date, title, director, search_type):
+    """Filter movies by title, director and date"""
     if start_date is None:
         start_date = str(datetime.now().strftime("%Y-%m-%d %H:%M"))
     try:
@@ -124,6 +126,7 @@ def filter(cli_obj, start_date, end_date, title, director, search_type):
     "--horizon", "-h", type=int, default=10, help="Number of days to look ahead"
 )
 def filter_by_duration(cli_obj, min_duration, max_duration, horizon):
+    """Filter movies by duration"""
     validation = validate_duration([min_duration, max_duration])
     if validation.result == ValidationCheck.INVALID:
         click.echo(validation.message)
