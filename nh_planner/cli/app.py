@@ -1,8 +1,10 @@
 import asyncio
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import click
+from sqlite_vec import serialize_float32
+from tqdm import tqdm
 
 from nh_planner.cli.utils import (ValidationCheck, create_movie_dicts,
                                   display_movie, display_table, parse_date,
@@ -11,9 +13,12 @@ from nh_planner.cli.utils import (ValidationCheck, create_movie_dicts,
 from nh_planner.db.data_models import MovieCard, MovieFilterResult
 from nh_planner.db.database import DatabaseManager
 from nh_planner.db.dynamic_scrapper import scrape_and_load_movies_into_db
-from nh_planner.db.queries import SELECT_MOVIES_WITH_LESS_THAN_N_SCREENINGS
-from nh_planner.db.utils import (DateFilter, DurationFilter, Filter,
-                                 TitleFilter, build_filter_query)
+from nh_planner.db.queries import (GET_MOVIE_ID_FOR_EMDED, INSERT_VECTOR,
+                                   SELECT_MOVIES_ABOVE_THRESHOLD,
+                                   SELECT_MOVIES_WITH_LESS_THAN_N_SCREENINGS)
+from nh_planner.db.utils import (DateFilter, DirectorFilter, DurationFilter,
+                                 Filter, TitleFilter, build_filter_query)
+from nh_planner.llm.utils import process_texts, sync_embed
 
 
 class Database(DatabaseManager):
@@ -33,11 +38,17 @@ def cli(ctx):
 
 
 @cli.command()
+@click.pass_obj
 @click.argument("days_ahead", type=int, default=12)
 @click.option("--force", "-f", is_flag=True, help="Force refresh")
-def refresh(days_ahead, force):
-    """Refresh movie data from website"""
+def refresh(cli_obj, days_ahead, force):
     asyncio.run(scrape_and_load_movies_into_db(days_ahead, force_scrape=force))
+    movies_id_for_embedd = cli_obj.execute_query(GET_MOVIE_ID_FOR_EMDED)
+    movie_ids = [movie[0] for movie in movies_id_for_embedd if movie[1]]
+    descriptions = [movie[1] for movie in movies_id_for_embedd if movie[1]]
+    embeddings = asyncio.run(process_texts(descriptions))
+    for movie_id, vector in tqdm(zip(movie_ids, embeddings)):
+        cli_obj.insert_query(INSERT_VECTOR, (movie_id, serialize_float32(vector)))
 
 
 @cli.command()
@@ -49,10 +60,19 @@ def refresh(days_ahead, force):
     "--end-date", "-e", type=str, default=None, help="End date (YYYY-MM-DD HH:MM)"
 )
 @click.option(
-    "--titles", "-t", type=str, default=None, help="Movie titles for filtering"
+    "--title", "-t", type=str, default=None, help="Movie titles for filtering"
 )
-def filter(cli_obj, start_date, end_date, titles):
-    """Filter movies by title, date and duration"""
+@click.option(
+    "--director", "-d", type=str, default=None, help="Movie director for filtering"
+)
+@click.option(
+    "--search-type",
+    "-st",
+    type=click.Choice(["fuzzy", "exact"], case_sensitive=False),
+    default="fuzzy",
+    help="Search type for title and director",
+)
+def filter(cli_obj, start_date, end_date, title, director, search_type):
     if start_date is None:
         start_date = str(datetime.now().strftime("%Y-%m-%d %H:%M"))
     try:
@@ -66,16 +86,25 @@ def filter(cli_obj, start_date, end_date, titles):
     if date_validation.result == ValidationCheck.INVALID:
         click.echo(date_validation.message)
         return
-    if titles is not None:
-        titles_validation = validate_title(titles)
-        if titles_validation.result == ValidationCheck.INVALID:
-            click.echo(titles_validation.message)
+    if title is not None:
+        title_validation = validate_title(title)
+        if title_validation.result == ValidationCheck.INVALID:
+            click.echo(title_validation.message)
             return
-        titles = titles.split(",")
+        title = title.split(",")
+    if director is not None:
+        director_validation = validate_title(director)
+        if director_validation.result == ValidationCheck.INVALID:
+            click.echo(director_validation.message)
+            return
+        director = director.split(",")
     query = build_filter_query(
         Filter(
-            title=TitleFilter(title=titles) if titles else None,
+            title=TitleFilter(title=title, search_type=search_type) if title else None,
             date=DateFilter(start_date=start_date, end_date=end_date),
+            director=DirectorFilter(director=director, search_type=search_type)
+            if director
+            else None,
         )
     )
     results = cli_obj.execute_query(query)
@@ -91,19 +120,22 @@ def filter(cli_obj, start_date, end_date, titles):
 @click.option(
     "--max-duration", "-max", type=int, default=None, help="Maximum movie duration"
 )
-def filter_by_duration(cli_obj, min_duration, max_duration):
-    """Filter movies by duration"""
+@click.option(
+    "--horizon", "-h", type=int, default=10, help="Number of days to look ahead"
+)
+def filter_by_duration(cli_obj, min_duration, max_duration, horizon):
     validation = validate_duration([min_duration, max_duration])
     if validation.result == ValidationCheck.INVALID:
         click.echo(validation.message)
         return
     today = datetime.now().strftime("%Y-%m-%d %H:%M")
+    end_date = (datetime.now() + timedelta(days=horizon)).strftime("%Y-%m-%d %H:%M")
     query = build_filter_query(
         Filter(
             duration=DurationFilter(
                 min_duration=min_duration, max_duration=max_duration
             ),
-            date=DateFilter(start_date=today),
+            date=DateFilter(start_date=today, end_date=end_date),
         )
     )
     results = cli_obj.execute_query(query)
@@ -130,6 +162,22 @@ def show_rare(cli_obj, n):
     """Display movies with less than n screenings"""
     results = cli_obj.execute_query(
         query=SELECT_MOVIES_WITH_LESS_THAN_N_SCREENINGS, params=(n,)
+    )
+    movie_details = create_movie_dicts(results, MovieCard)
+    for movie in movie_details:
+        display_movie(movie)
+
+
+@cli.command()
+@click.pass_obj
+@click.argument("user_descr", type=str)
+@click.option("-k", type=int, default=5, help="Number of recommendations")
+def recommend(cli_obj, user_descr, k):
+    """Recommend movies based on user description"""
+    user_vec = sync_embed(user_descr)
+    results = cli_obj.execute_query(
+        SELECT_MOVIES_ABOVE_THRESHOLD,
+        (serialize_float32(user_vec), k),
     )
     movie_details = create_movie_dicts(results, MovieCard)
     for movie in movie_details:

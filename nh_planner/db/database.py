@@ -2,9 +2,12 @@ import sqlite3
 from contextlib import contextmanager
 from typing import Generator
 
+import sqlite_vec
+
 from nh_planner.config import DB_PATH
 from nh_planner.db.data_models import MovieDetails
-from nh_planner.db.queries import (CREATE_MOVIES_SCREENINGS_TABLE,
+from nh_planner.db.queries import (CREATE_EMBEDDINGS_TABLE,
+                                   CREATE_MOVIES_SCREENINGS_TABLE,
                                    CREATE_MOVIES_TABLE,
                                    CREATE_SCRAPED_DATES_TABLE, GET_MOVIE_ID,
                                    INSERT_MOVIE, INSERT_SCRAPED_DATE,
@@ -20,7 +23,10 @@ class DatabaseManager:
     def get_cursor(self) -> Generator[sqlite3.Cursor, None, None]:
         """Context manager for database connections"""
         conn = sqlite3.connect(self.db_path)
+        conn.enable_load_extension(True)
+        sqlite_vec.load(conn)
         create_levenshtein_function(conn)
+        conn.enable_load_extension(False)
         try:
             c = conn.cursor()
             yield c
@@ -35,6 +41,7 @@ class DatabaseManager:
             cursor.execute(CREATE_MOVIES_TABLE)
             cursor.execute(CREATE_MOVIES_SCREENINGS_TABLE)
             cursor.execute(CREATE_SCRAPED_DATES_TABLE)
+            cursor.execute(CREATE_EMBEDDINGS_TABLE)
 
     def execute_query(self, query: str, params: tuple = ()) -> list:
         """Execute a query and return results"""

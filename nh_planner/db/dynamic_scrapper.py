@@ -10,9 +10,8 @@ from nh_planner.config import BASE_LINK, PROGRAMME_LINK
 from nh_planner.db.data_models import MovieDetails, MovieLink
 from nh_planner.db.database import DatabaseScrapingManager
 
-
 logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.ERROR, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 
 LOGGER = logging.getLogger(__name__)
@@ -77,7 +76,11 @@ async def extract_movie_details(html: str, title: str, href: str) -> dict[MovieD
     )
 
     opisf = soup.find("div", class_="opisf")
-    description = opisf.find("p").text.strip() if opisf and opisf.find("p") else None
+    description = (
+        " ".join(i.text.strip() for i in opisf.find_all("p"))
+        if opisf and opisf.find_all("p")
+        else None
+    )
 
     return {
         "title": title,
@@ -152,7 +155,3 @@ async def scrape_and_load_movies_into_db(
             await process_date(page, date, db_manager, force_scrape)
 
         await browser.close()
-
-
-if __name__ == "__main__":
-    asyncio.run(scrape_and_load_movies_into_db())

@@ -31,6 +31,12 @@ CREATE_SCRAPED_DATES_TABLE = """
     );
     """
 
+CREATE_EMBEDDINGS_TABLE = """
+    CREATE VIRTUAL TABLE IF NOT EXISTS descr_vecs using vec0(
+        movie_id integer primary key,
+        descr_embedding float[1024]
+    );
+    """
 
 # Queries for scraping
 SELECT_IF_SCRAPED_DATES = """
@@ -66,6 +72,17 @@ INSERT_SCRAPED_DATE = """
 
 
 # Queries for cli app commands
+GET_MOVIE_ID_FOR_EMDED = """
+    SELECT id, CONCAT('Gatunek: ', genre, 'Reżyser: ', director, description, ' ') FROM movies 
+    WHERE NOT EXISTS (
+        SELECT 1 FROM descr_vecs WHERE movie_id = id
+    );
+    """
+
+INSERT_VECTOR = """
+    INSERT INTO descr_vecs (movie_id, descr_embedding) VALUES (?, ?);
+    """
+
 SELECT_MOVIES_WITH_LESS_THAN_N_SCREENINGS = """
     SELECT m.title, duration, director, genre, production, description, screenings, href FROM (
         SELECT m.title, COUNT(ms.movie_id) AS number_of_screenings,
@@ -76,4 +93,19 @@ SELECT_MOVIES_WITH_LESS_THAN_N_SCREENINGS = """
         GROUP BY m.title
         HAVING number_of_screenings <= ?
     ) t INNER JOIN movies m ON t.title = m.title
+    """
+
+SELECT_MOVIES_ABOVE_THRESHOLD = """
+    SELECT m.title, duration, director, genre, production, description, screenings, href FROM (
+        SELECT m.title, COUNT(ms.movie_id) AS number_of_screenings,
+        GROUP_CONCAT(ms.screening_date, '\n') AS screenings
+        FROM movies m
+        JOIN movies_screenings ms ON m.id = ms.movie_id
+        WHERE ms.screening_date > current_date
+        GROUP BY m.title
+    ) t INNER JOIN movies m ON t.title = m.title
+    INNER JOIN descr_vecs d ON m.id = d.movie_id
+    WHERE descr_embedding MATCH ?
+    AND k = ?
+    ORDER BY distance;
     """

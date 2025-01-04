@@ -3,8 +3,15 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 
+# Filter models
 class TitleFilter(BaseModel):
     title: list[str]
+    search_type: Optional[str] = Field("fuzzy")
+
+
+class DirectorFilter(BaseModel):
+    director: list[str]
+    search_type: Optional[str] = Field("fuzzy")
 
 
 class DurationFilter(BaseModel):
@@ -17,10 +24,26 @@ class DateFilter(BaseModel):
     end_date: Optional[str] = Field(None)
 
 
+class GenreFilter(BaseModel):
+    genre: list[str]
+    search_type: Optional[str] = Field("fuzzy")
+
+
 class Filter(BaseModel):
     title: Optional[TitleFilter] = Field(None)
+    director: Optional[DirectorFilter] = Field(None)
     duration: Optional[DurationFilter] = Field(None)
     date: DateFilter
+
+
+def create_str_search_conditions(
+    column_name: str, values: list[str], search_type: str
+) -> str:
+    if search_type == "fuzzy":
+        comparisons = [f"levenshtein({column_name}, '{value}') < 3" for value in values]
+    else:
+        comparisons = [f"{column_name} like '%{value}%'" for value in values]
+    return "(" + " OR ".join(comparisons) + ")"
 
 
 def build_filter_query(filters: Filter) -> str:
@@ -43,14 +66,15 @@ def build_filter_query(filters: Filter) -> str:
     """
     conditions = []
     if title_filter := filters.title:
-        titles_where_clause = (
-            "("
-            + " OR ".join(
-                [f"levenshtein(title, '{title}') < 3" for title in title_filter.title]
-            )
-            + ")"
+        titles_where_clause = create_str_search_conditions(
+            "title", title_filter.title, title_filter.search_type
         )
         conditions.append(titles_where_clause)
+    if director_filter := filters.director:
+        directors_where_clause = create_str_search_conditions(
+            "director", director_filter.director, director_filter.search_type
+        )
+        conditions.append(directors_where_clause)
     if duration_filter := filters.duration:
         if duration_filter.min_duration:
             conditions.append(f"duration >= {duration_filter.min_duration}")
@@ -62,6 +86,7 @@ def build_filter_query(filters: Filter) -> str:
     return query
 
 
+# Database extensions
 def create_levenshtein_function(conn):
     def levenshtein(s1, s2):
         if not s1:

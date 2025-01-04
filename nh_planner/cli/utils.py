@@ -10,32 +10,22 @@ from rich.table import Table
 
 from nh_planner.db.data_models import MovieCard, MovieFilterResult
 
+# Display functions
 STYLES = ["cyan", "green", "yellow", "blue", "magenta", "red"]
 N = len(STYLES)
-
-
-class ValidationCheck(Enum):
-    VALID = 0
-    INVALID = 1
-
-
-class ValidationResult(BaseModel):
-    result: ValidationCheck
-    message: Optional[str] = Field(None)
-
-
-def create_movie_dicts(
-    movies: list[tuple], dict_format: MovieCard | MovieFilterResult
-) -> list[MovieCard | MovieFilterResult]:
-    return [dict(zip(dict_format.__annotations__, movie)) for movie in movies]
 
 
 def display_movie(movie: MovieCard):
     console = Console()
     for i, (key, value) in enumerate(movie.items()):
-        if key == "duration":
-            value = f"{value}'"
-        console.print(f"[{STYLES[i % N]}]{key.capitalize()}: {value}[/{STYLES[i % N]}]")
+        if key == "href":
+            console.print(f"[{STYLES[i % N]}]{key}: {value}[/{STYLES[i % N]}]")
+        else:
+            if key == "duration":
+                value = f"{value}'"
+            console.print(
+                f"[{STYLES[i % N]}]{key.capitalize()}: {value}[/{STYLES[i % N]}]"
+            )
     console.print("\n")
 
 
@@ -48,18 +38,45 @@ def display_table(movies: list[MovieCard]):
         box=box.ROUNDED,
     )
 
+    if not movies:
+        console.print("No movies found")
+        return
+
     for i, (key, _) in enumerate(movies[0].items()):
-        table.add_column(key.capitalize(), style=STYLES[i % N])
+        if key == "href":
+            table.add_column(key, style=STYLES[i % N])
+        else:
+            table.add_column(key.capitalize(), style=STYLES[i % N])
 
     for movie in movies:
+        movie["duration"] = f"{movie['duration']}'"
         table.add_row(*[str(value) for value in movie.values()])
+        table.add_row()
 
     console.print(table)
 
 
+# Parsing functions
 def parse_date(date: str) -> str:
     """Parse date string to format 'YYYY-MM-DD HH:MM'"""
     return parse(date).strftime("%Y-%m-%d %H:%M")
+
+
+def create_movie_dicts(
+    movies: list[tuple], dict_format: MovieCard | MovieFilterResult
+) -> list[MovieCard | MovieFilterResult]:
+    return [dict(zip(dict_format.__annotations__, movie)) for movie in movies]
+
+
+# Validation functions
+class ValidationCheck(Enum):
+    VALID = 0
+    INVALID = 1
+
+
+class ValidationResult(BaseModel):
+    result: ValidationCheck
+    message: Optional[str] = Field(None)
 
 
 def validate_date(dates: list[str]) -> ValidationResult:
