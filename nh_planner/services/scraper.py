@@ -3,28 +3,22 @@ import logging
 from datetime import datetime, timedelta
 from typing import Optional
 
-
 from bs4 import BeautifulSoup
-from playwright.async_api import async_playwright, Page
-from playwright.sync_api import sync_playwright
+from playwright.async_api import Page, async_playwright
 from tqdm.asyncio import tqdm_asyncio
 
-from nh_planner.core.models import Movie, Screening
 from nh_planner.core.config import BASE_URL, PROGRAMME_URL
+from nh_planner.core.models import Movie, Screening
 from nh_planner.services.database import Database
 
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.INFO, format="%(levelname)s - %(message)s")
 logging.getLogger("asyncio").setLevel(logging.ERROR)
 
 logger = logging.getLogger(__name__)
 
 
 class Scraper:
-    
     def __init__(self, db: Database):
         self.db = db
 
@@ -32,35 +26,43 @@ class Scraper:
         soup = BeautifulSoup(html, "html.parser")
 
         movies = []
-        for movie_div in soup.find_all("div", "boks ilustracja-left mala-ilustr wyzszy"):
+        for movie_div in soup.find_all(
+            "div", "boks ilustracja-left mala-ilustr wyzszy"
+        ):
             try:
                 link = movie_div.find("a", class_="tyt")
                 if not link:
                     logger.warning("Found movie div without title link")
                     continue
-                    
+
                 screenings = movie_div.find_all("a", class_="xseans")
                 if not screenings:
                     logger.warning(f"No screenings found for movie {link.text.strip()}")
                     continue
-                    
-                movies.append({
-                    "title": link.text.strip(),
-                    "href": BASE_URL + link.get("href", ""),
-                    "screenings": [a.text for a in screenings],
-                })
+
+                movies.append(
+                    {
+                        "title": link.text.strip(),
+                        "href": BASE_URL + link.get("href", ""),
+                        "screenings": [a.text for a in screenings],
+                    }
+                )
             except Exception as e:
                 logger.error(f"Error processing movie div: {e}")
-                movies.append({
-                    "title": link.text.strip(),
-                    "href": BASE_URL + link.get("href", ""),
-                    "screenings": [
-                        a.text for a in movie_div.find_all("a", class_="xseans")
-                    ],
-                })
+                movies.append(
+                    {
+                        "title": link.text.strip(),
+                        "href": BASE_URL + link.get("href", ""),
+                        "screenings": [
+                            a.text for a in movie_div.find_all("a", class_="xseans")
+                        ],
+                    }
+                )
         return movies
 
-    async def extract_movie_details(self, html: str, title: str, href: str) -> Optional[Movie]:
+    async def extract_movie_details(
+        self, html: str, title: str, href: str
+    ) -> Optional[Movie]:
         try:
             soup = BeautifulSoup(html, "html.parser")
 
@@ -72,7 +74,9 @@ class Scraper:
                 ),
                 None,
             )
-            duration = int("".join(c for c in duration if c.isdigit())) if duration else 0
+            duration = (
+                int("".join(c for c in duration if c.isdigit())) if duration else 0
+            )
 
             director = next(
                 (
@@ -116,7 +120,7 @@ class Scraper:
                 genre=genre,
                 production=production,
                 description=description,
-                href=href
+                href=href,
             )
         except Exception as e:
             logger.error(f"Error extracting movie details from {href}: {e}")
@@ -125,7 +129,7 @@ class Scraper:
     async def process_movie(self, page: Page, movie: dict, date: str):
         title = movie["title"]
         screenings = [date + " " + s for s in movie["screenings"]]
-             
+
         result = await asyncio.to_thread(self.db.get_movie, title)
         if result:
             movie_id = result
@@ -134,8 +138,10 @@ class Scraper:
                 await page.goto(movie["href"])
                 await page.wait_for_selector(".opisf", timeout=5_000)
                 html = await page.content()
-                movie_details = await self.extract_movie_details(html, title, movie["href"])
-                
+                movie_details = await self.extract_movie_details(
+                    html, title, movie["href"]
+                )
+
                 if movie_details:
                     movie_id = await asyncio.to_thread(self.db.add_movie, movie_details)
             except Exception as e:
@@ -145,8 +151,7 @@ class Scraper:
         if movie_id and screenings:
             try:
                 screening_objects = [
-                    Screening(movie_id=movie_id, date=s)
-                    for s in screenings
+                    Screening(movie_id=movie_id, date=s) for s in screenings
                 ]
                 await asyncio.to_thread(self.db.add_screenings, screening_objects)
             except Exception as e:
@@ -162,7 +167,7 @@ class Scraper:
 
         DD_MM_YYYY = "-".join(date.split("-")[::-1])
         await page.goto(f"{PROGRAMME_URL}{DD_MM_YYYY}")
-        
+
         await page.wait_for_selector(".tyt", timeout=5_000)
 
         html = await page.content()
@@ -173,7 +178,9 @@ class Scraper:
 
         await asyncio.to_thread(self.db.mark_date_scraped, date)
 
-    async def scrape_movies(self, days_ahead: int = 7, force_scrape: bool = False) -> None:
+    async def scrape_movies(
+        self, days_ahead: int = 7, force_scrape: bool = False
+    ) -> None:
         scrape_dates = [
             (datetime.now() + timedelta(days=i)).strftime("%Y-%m-%d")
             for i in range(1, days_ahead + 1)
@@ -191,10 +198,9 @@ class Scraper:
                         logger.error(f"Failed to process date {date}: {e}")
                         try:
                             await page.close()
-                        except:
+                        except Exception as e:
                             pass
                         page = await browser.new_page()
                         continue
             finally:
                 await browser.close()
-    

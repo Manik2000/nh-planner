@@ -18,13 +18,13 @@ def format_value(key: str, value: any) -> str:
 def display_movie(movie: MovieWithScreenings) -> None:
     console = Console()
     console.print("\n" + "=" * 50 + "\n")
-    
+
     fields = {k: v for k, v in movie.model_dump().items()}
-    
+
     for i, (key, value) in enumerate(fields.items()):
         style = STYLES[i % N]
         formatted_value = format_value(key, value)
-        
+
         if key == "href":
             console.print(f"[{style}]{key}: {formatted_value}[/{style}]")
         elif key == "screenings":
@@ -32,7 +32,7 @@ def display_movie(movie: MovieWithScreenings) -> None:
             console.print(formatted_value)
         else:
             console.print(f"[{style}]{key.capitalize()}: {formatted_value}[/{style}]")
-    
+
     console.print("\n")
 
 
@@ -47,9 +47,9 @@ def display_table(movies: list[MovieWithScreenings]) -> None:
         header_style="bold magenta",
         box=box.ROUNDED,
     )
-    
+
     fields = [i for i in movies[0].model_fields.keys() if i != "description"]
-    
+
     for i, field in enumerate(fields):
         style = STYLES[i % N]
         column_name = field if field == "href" else field.capitalize()
@@ -62,7 +62,7 @@ def display_table(movies: list[MovieWithScreenings]) -> None:
                 continue
             value = getattr(movie, field)
             row_values.append(format_value(field, value))
-        
+
         table.add_row(*row_values)
         table.add_row()
 

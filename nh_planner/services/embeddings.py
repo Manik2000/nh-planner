@@ -5,6 +5,7 @@ from tqdm.asyncio import tqdm
 
 
 class EmbeddingService:
+    
     def __init__(self, db, chat_model="llama3.2", embed_model="mxbai-embed-large"):
         self.db = db
         self.chat_model = chat_model
@@ -19,7 +20,9 @@ class EmbeddingService:
         response = Client().embeddings(prompt=text, model=self.embed_model)
         return self.normalize(response.embedding)
 
-    async def process_single(self, text: str, client: AsyncClient, sem: asyncio.Semaphore) -> list[float]:
+    async def process_single(
+        self, text: str, client: AsyncClient, sem: asyncio.Semaphore
+    ) -> list[float]:
         async with sem:
             response = await client.chat(
                 model=self.chat_model,
@@ -41,7 +44,9 @@ class EmbeddingService:
             embedding = self.normalize(emb_response.embedding)
             return embedding
 
-    async def process_texts(self, texts: list[str], max_concurrent: int = 2) -> list[list[float]]:
+    async def process_texts(
+        self, texts: list[str], max_concurrent: int = 2
+    ) -> list[list[float]]:
         sem = asyncio.Semaphore(max_concurrent)
         client = AsyncClient()
 
@@ -54,7 +59,7 @@ class EmbeddingService:
         movies = self.db.get_movies_needing_embeddings()
         texts = [text for _, text in movies]
         embeddings = await self.process_texts(texts)
-        
+
         for (movie_id, _), embedding in zip(movies, embeddings):
             self.db.add_movie_embedding(movie_id, embedding)
 

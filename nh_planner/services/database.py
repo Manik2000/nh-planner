@@ -6,9 +6,8 @@ from typing import Generator, Optional
 
 import sqlite_vec
 
-from nh_planner.core.models import Movie, Screening, MovieWithScreenings
 from nh_planner.core.config import DB_PATH
-
+from nh_planner.core.models import Movie, MovieWithScreenings, Screening
 
 logger = logging.getLogger(__name__)
 
@@ -47,15 +46,14 @@ INIT_SCHEMA = """
 
 
 class Database:
-    
     def __init__(self, db_path: Path = DB_PATH):
         self.db_path = db_path
         self._init_db()
-    
+
     def _init_db(self) -> None:
         with self.connect() as conn:
             conn.executescript(INIT_SCHEMA)
-    
+
     @contextmanager
     def connect(self) -> Generator[sqlite3.Connection, None, None]:
         conn = sqlite3.connect(self.db_path)
@@ -96,12 +94,20 @@ class Database:
         RETURNING id
         """
         with self.connect() as conn:
-            movie_id = conn.execute(query, (        
-                movie.title, movie.duration, movie.director,
-                movie.genre, movie.production, movie.description, movie.href
-            )).fetchone()[0]
+            movie_id = conn.execute(
+                query,
+                (
+                    movie.title,
+                    movie.duration,
+                    movie.director,
+                    movie.genre,
+                    movie.production,
+                    movie.description,
+                    movie.href,
+                ),
+            ).fetchone()[0]
             return movie_id
-        
+
     def clear_date_screenings(self, date: str) -> None:
         """Clear all screenings for a specific date"""
         query = """
@@ -124,9 +130,7 @@ class Database:
         ON CONFLICT(movie_id, screening_date) DO NOTHING
         """
         with self.connect() as conn:
-            conn.executemany(query, [
-                (s.movie_id, s.date) for s in screenings
-            ])
+            conn.executemany(query, [(s.movie_id, s.date) for s in screenings])
 
     def is_date_scraped(self, date: str) -> bool:
         query = "SELECT 1 FROM scraped_dates WHERE date = ?"
@@ -135,11 +139,15 @@ class Database:
             return bool(result)
 
     def mark_date_scraped(self, date: str) -> None:
-        query = "INSERT INTO scraped_dates (date) VALUES (?) ON CONFLICT(date) DO NOTHING"
+        query = (
+            "INSERT INTO scraped_dates (date) VALUES (?) ON CONFLICT(date) DO NOTHING"
+        )
         with self.connect() as conn:
             conn.execute(query, (date,))
 
-    def filter_movies(self, where_clause: str, params: tuple) -> list[MovieWithScreenings]:
+    def filter_movies(
+        self, where_clause: str, params: tuple
+    ) -> list[MovieWithScreenings]:
         query = f"""
         SELECT DISTINCT
             m.title,
@@ -155,15 +163,21 @@ class Database:
         WHERE {where_clause}
         GROUP BY m.title, m.duration, m.director, m.genre, m.production, m.description, m.href
         """
-        
+
         with self.connect() as conn:
             results = conn.execute(query, params).fetchall()
 
-        movies = [MovieWithScreenings(**{
-            key: row[i] for i, key in enumerate(MovieWithScreenings.model_fields.keys())
-        }) for row in results]
+        movies = [
+            MovieWithScreenings(
+                **{
+                    key: row[i]
+                    for i, key in enumerate(MovieWithScreenings.model_fields.keys())
+                }
+            )
+            for row in results
+        ]
         return movies
-    
+
     def get_movies_needing_embeddings(self) -> list[tuple[int, str]]:
         query = """
         SELECT id, CONCAT('Gatunek: ', genre, ' Reżyser: ', director, ' Opis: ', description)
@@ -196,9 +210,9 @@ class Database:
         ORDER BY distance;
         """
         with self.connect() as conn:
-            return conn.execute(query, 
-                              (sqlite_vec.serialize_float32(embedding), limit)
-                             ).fetchall()
+            return conn.execute(
+                query, (sqlite_vec.serialize_float32(embedding), limit)
+            ).fetchall()
 
     def get_limited_movies(self, limit: int = 5) -> list[MovieWithScreenings]:
         query = f"""
@@ -215,7 +229,13 @@ class Database:
         with self.connect() as conn:
             results = conn.execute(query).fetchall()
 
-        movies = [MovieWithScreenings(**{
-            key: row[i] for i, key in enumerate(MovieWithScreenings.model_fields.keys())
-        }) for row in results]
+        movies = [
+            MovieWithScreenings(
+                **{
+                    key: row[i]
+                    for i, key in enumerate(MovieWithScreenings.model_fields.keys())
+                }
+            )
+            for row in results
+        ]
         return movies

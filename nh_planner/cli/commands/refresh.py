@@ -1,9 +1,10 @@
 import asyncio
+
 import click
 
 from nh_planner.services.database import Database
-from nh_planner.services.scraper import Scraper
 from nh_planner.services.embeddings import EmbeddingService
+from nh_planner.services.scraper import Scraper
 
 
 @click.command()
