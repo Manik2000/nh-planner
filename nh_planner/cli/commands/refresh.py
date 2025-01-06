@@ -8,7 +8,7 @@ from nh_planner.services.scraper import Scraper
 
 
 @click.command()
-@click.argument("days", type=int, default=7)
+@click.argument("days", type=int, default=0)
 @click.option("--force", "-f", is_flag=True, help="Force refresh even if data exists")
 def refresh(days: int, force: bool):
     """Refresh movie data for the next N days"""

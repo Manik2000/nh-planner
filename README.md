@@ -8,32 +8,27 @@ A CLI app that enables to scrape the screenings of Nowe Horyzonty cinema ([NH](h
 ## About
 
 ```
-├── LICENSE
-├── README.md
-├── media
-│   └── screenshot.png
 ├── nh_planner
 │   ├── __init__.py
 │   ├── cli
 │   │   ├── __init__.py
 │   │   ├── app.py
-│   │   └── utils.py
-│   ├── config.py
-│   ├── db
-│   │   ├── __init__.py
-│   │   ├── data_models.py
-│   │   ├── database.py
-│   │   ├── dynamic_scrapper.py
-│   │   ├── queries.py
-│   │   └── utils.py
-│   ├── llm
-│   │   ├── __init__.py
-│   │   ├── agent.py
-│   │   ├── conversation.py
-│   │   ├── llm.py
-│   │   ├── query_generator.py
-│   │   └── reasoning.py
-│   └── main.py
+│   │   └── commands
+│   │       ├── filter.py
+│   │       ├── get_limited.py
+│   │       ├── info.py
+│   │       ├── recommend.py
+│   │       ├── refresh.py
+│   │       └── utils.py
+│   ├── core
+│   │   ├── config.py
+│   │   └── models.py
+│   ├── main.py
+│   └── services
+│       ├── database.py
+│       ├── embeddings.py
+│       ├── filters.py
+│       └── scraper.py
 ├── pyproject.toml
 └── uv.lock
 ```

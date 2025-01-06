@@ -1,5 +1,6 @@
 import click
 
+from nh_planner.cli.commands.utils import display_movie
 from nh_planner.services.database import Database
 from nh_planner.services.embeddings import EmbeddingService
 
@@ -21,15 +22,8 @@ def recommend(description: str, limit: int):
             return
 
         for movie in movies:
-            click.echo("\n" + "=" * 50)
-            click.echo(f"Title: {movie[0]}")
-            click.echo(f"Duration: {movie[1]} min")
-            click.echo(f"Director: {movie[2]}")
-            click.echo(f"Genre: {movie[3]}")
-            if movie[4]:  # screenings
-                click.echo("\nScreenings:")
-                for screening in movie[4].split(","):
-                    click.echo(f"  - {screening}")
+            display_movie(movie)
+            click.echo("\n")            
 
     except Exception as e:
         click.echo(f"Error: {e}")

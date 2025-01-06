@@ -17,7 +17,7 @@ def format_value(key: str, value: any) -> str:
 
 def display_movie(movie: MovieWithScreenings) -> None:
     console = Console()
-    console.print("\n" + "=" * 50 + "\n")
+    console.print("\n" + "=" * 50)
 
     fields = {k: v for k, v in movie.model_dump().items()}
 
@@ -28,12 +28,11 @@ def display_movie(movie: MovieWithScreenings) -> None:
         if key == "href":
             console.print(f"[{style}]{key}: {formatted_value}[/{style}]")
         elif key == "screenings":
-            console.print(f"[{style}]{key.capitalize()}:")
-            console.print(formatted_value)
+            console.print(f"[{style}]{key.capitalize()}:[/{style}]")
+            for date in value.split("\n"):
+                console.print(f"[{style}]  - {date}[/{style}]")
         else:
             console.print(f"[{style}]{key.capitalize()}: {formatted_value}[/{style}]")
-
-    console.print("\n")
 
 
 def display_table(movies: list[MovieWithScreenings]) -> None:
