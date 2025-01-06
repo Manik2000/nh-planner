@@ -20,7 +20,7 @@ dependencies = [
 ]
 
 [project.scripts]
-nh-planner = "nh_planner.main:main"
+nh = "nh_planner.main:main"
 
 [build-system]
 requires = ["hatchling"]
