@@ -9,7 +9,6 @@ import sqlite_vec
 from nh_planner.core.config import DB_PATH
 from nh_planner.core.models import Movie, MovieWithScreenings, Screening
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -112,7 +111,7 @@ class Database:
     def clear_date_screenings(self, date: str) -> None:
         """Clear all screenings for a specific date"""
         query = """
-        DELETE FROM screenings 
+        DELETE FROM screenings
         WHERE DATE(screening_date) = DATE(?);
         """
         with self.connect() as conn:
@@ -182,7 +181,7 @@ class Database:
     def get_movies_needing_embeddings(self) -> list[tuple[int, str]]:
         query = """
         SELECT id, CONCAT('Gatunek: ', genre, ' Reżyser: ', director, ' Opis: ', description)
-        FROM movies 
+        FROM movies
         WHERE NOT EXISTS (
             SELECT 1 FROM embeddings WHERE movie_id = id
         );
@@ -198,7 +197,9 @@ class Database:
         with self.connect() as conn:
             conn.execute(query, (movie_id, sqlite_vec.serialize_float32(embedding)))
 
-    def get_similar_movies(self, embedding: list[float], limit: int = 5) -> list[MovieWithScreenings]:
+    def get_similar_movies(
+        self, embedding: list[float], limit: int = 5
+    ) -> list[MovieWithScreenings]:
         query = """
         SELECT title, duration, director, genre, production, description, href, GROUP_CONCAT(s.screening_date, '\n') as screenings
         FROM movies m
@@ -231,7 +232,7 @@ class Database:
             FROM movies m INNER JOIN screenings s ON m.id = s.movie_id
             WHERE screening_date >= CURRENT_DATE
             GROUP BY m.id
-            HAVING count(*) <= {limit}
+            HAVING count(*) = {limit}
         ) t ON m.id = t.id
         GROUP BY title, duration, director, production, description, href
         """
@@ -252,11 +253,11 @@ class Database:
     def get_detailed_stats(self) -> dict:
         query = """
         WITH stats AS (
-            SELECT 
+            SELECT
                 COUNT(DISTINCT m.id) as total_movies,
-                COUNT(DISTINCT CASE 
-                    WHEN s.screening_date >= date('now') 
-                    THEN m.id 
+                COUNT(DISTINCT CASE
+                    WHEN s.screening_date >= date('now')
+                    THEN m.id
                 END) as future_movies,
                 COUNT(CASE WHEN s.screening_date >= date('now') THEN 1 END) as future_screenings,
                 MAX(sd.date) as last_scraped_date
@@ -265,7 +266,7 @@ class Database:
             CROSS JOIN (SELECT MAX(date) as date FROM scraped_dates) sd
         ),
         popular_movie AS (
-            SELECT 
+            SELECT
                 m.title,
                 COUNT(*) as screening_count
             FROM movies m
@@ -275,7 +276,7 @@ class Database:
             ORDER BY screening_count DESC
             LIMIT 1
         )
-        SELECT 
+        SELECT
             stats.*,
             pm.title as most_popular,
             pm.screening_count
@@ -284,10 +285,10 @@ class Database:
         with self.connect() as conn:
             row = conn.execute(query).fetchone()
             return {
-                'total_movies': row[0],
-                'future_movies': row[1],
-                'future_screenings': row[2],
-                'last_scraped': row[3],
-                'popular_movie': row[4],
-                'popular_screenings': row[5]
+                "total_movies": row[0],
+                "future_movies": row[1],
+                "future_screenings": row[2],
+                "last_scraped": row[3],
+                "popular_movie": row[4],
+                "popular_screenings": row[5],
             }

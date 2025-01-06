@@ -5,7 +5,6 @@ from tqdm.asyncio import tqdm
 
 
 class EmbeddingService:
-    
     def __init__(self, db, chat_model="llama3.2", embed_model="mxbai-embed-large"):
         self.db = db
         self.chat_model = chat_model

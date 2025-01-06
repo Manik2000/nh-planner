@@ -23,7 +23,7 @@ def recommend(description: str, limit: int):
 
         for movie in movies:
             display_movie(movie)
-            click.echo("\n")            
+            click.echo("\n")
 
     except Exception as e:
         click.echo(f"Error: {e}")
