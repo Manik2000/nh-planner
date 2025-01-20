@@ -224,7 +224,7 @@ class Database:
                 for row in results
             ]
 
-    def get_limited_movies(self, limit: int = 5) -> list[MovieWithScreenings]:
+    def get_movies_with_k_screenings(self, limit: int = 5) -> list[MovieWithScreenings]:
         query = f"""
         SELECT title, duration, director, genre, production, description, href, screening as screenings
         FROM movies m inner join (

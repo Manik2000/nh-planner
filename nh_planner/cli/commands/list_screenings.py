@@ -5,18 +5,12 @@ from nh_planner.services.database import Database
 
 
 @click.command()
-@click.option(
-    "--limit",
-    "-k",
-    type=int,
-    default=5,
-    help="Number of remaining screenings of a movie",
-)
-def list_limited(limit: int):
-    """Show movies with less than K screenings"""
+@click.argument("k", type=int)
+def list_screenings(k: int):
+    """Show movies with k screenings"""
     db = Database()
     try:
-        movies = db.get_limited_movies(limit)
+        movies = db.get_movies_with_k_screenings(k)
         for movie in movies:
             display_movie(movie)
     except Exception as e:
