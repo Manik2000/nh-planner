@@ -24,7 +24,10 @@ from nh_planner.services.filters import MovieFilter
     help="Start date",
 )
 @click.option("--end_date", "-e", type=str, default=None, help="End date")
-def filter(title, director, min_duration, max_duration, start_date, end_date):
+@click.option("--use-fuzzy", is_flag=True, help="Use fuzzy search")
+def filter(
+    title, director, min_duration, max_duration, start_date, end_date, use_fuzzy
+):
     """Filter movies by various criteria"""
     db = Database()
 
@@ -35,6 +38,7 @@ def filter(title, director, min_duration, max_duration, start_date, end_date):
         max_duration=max_duration,
         start_date=start_date,
         end_date=end_date,
+        use_fuzzy=use_fuzzy,
     )
 
     try:

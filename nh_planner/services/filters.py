@@ -11,18 +11,27 @@ class MovieFilter(BaseModel):
     max_duration: Optional[int] = Field(None)
     start_date: str = Field(default=datetime.now().strftime("%Y-%m-%d %H:%M"))
     end_date: Optional[str] = None
+    use_fuzzy: bool = False
 
     def to_sql(self) -> tuple[str, list]:
         conditions = ["1=1"]
         params = []
 
         if self.title:
-            conditions.append("LOWER(m.title) LIKE LOWER(?)")
-            params.append(f"%{self.title}%")
+            if self.use_fuzzy:
+                conditions.append("LEVENSHTEIN(LOWER(m.title), LOWER(?)) <= 3")
+                params.append(self.title)
+            else:
+                conditions.append("LOWER(m.title) LIKE LOWER(?)")
+                params.append(f"%{self.title}%")
 
         if self.director:
-            conditions.append("LOWER(m.director) LIKE LOWER(?)")
-            params.append(f"%{self.director}%")
+            if self.use_fuzzy:
+                conditions.append("LEVENSHTEIN(LOWER(m.director), LOWER(?)) <= 3")
+                params.append(self.director)
+            else:
+                conditions.append("LOWER(m.director) LIKE LOWER(?)")
+                params.append(f"%{self.director}%")
 
         if self.min_duration:
             conditions.append("m.duration >= ?")

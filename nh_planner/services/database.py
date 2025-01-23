@@ -12,6 +12,33 @@ from nh_planner.core.models import Movie, MovieWithScreenings, Screening
 logger = logging.getLogger(__name__)
 
 
+def create_levenshtein_function(conn: sqlite3.Connection) -> None:
+    def levenshtein(s1: str, s2: str) -> int:
+        s1 = s1.lower()
+        s2 = s2.lower()
+        len_s1 = len(s1)
+        len_s2 = len(s2)
+
+        if len_s1 == 0:
+            return len_s2
+        if len_s2 == 0:
+            return len_s1
+
+        previous_row = range(len_s2 + 1)
+        for i, c1 in enumerate(s1):
+            current_row = [i + 1]
+            for j, c2 in enumerate(s2):
+                insertions = previous_row[j + 1] + 1
+                deletions = current_row[j] + 1
+                substitutions = previous_row[j] + (c1 != c2)
+                current_row.append(min(insertions, deletions, substitutions))
+            previous_row = current_row
+
+        return previous_row[-1]
+
+    conn.create_function("LEVENSHTEIN", 2, levenshtein)
+
+
 INIT_SCHEMA = """
     CREATE TABLE IF NOT EXISTS movies (
         id INTEGER PRIMARY KEY,
@@ -57,6 +84,7 @@ class Database:
     @contextmanager
     def connect(self) -> Generator[sqlite3.Connection, None, None]:
         conn = sqlite3.connect(self.db_path)
+        create_levenshtein_function(conn)
         try:
             conn.enable_load_extension(True)
             sqlite_vec.load(conn)
