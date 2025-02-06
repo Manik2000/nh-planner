@@ -4,7 +4,6 @@ from rich.table import Table
 
 from nh_planner.core.models import MovieWithScreenings
 
-
 STYLES = ["cyan", "green", "yellow", "blue", "magenta", "red"]
 N = len(STYLES)
 

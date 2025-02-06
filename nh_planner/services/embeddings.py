@@ -1,14 +1,30 @@
 import asyncio
+import json
+from pathlib import Path
 
 from ollama import AsyncClient, Client
 from tqdm.asyncio import tqdm
 
+CONFIG_PATH = Path("~/.config/kinonh/models.json").expanduser()
+
+
+def load_models_config() -> dict[str, str]:
+    if not CONFIG_PATH.exists():
+        return {"chat_model": "llama3.2", "embed_model": "mxbai-embed-large"}
+    return json.loads(CONFIG_PATH.read_text())
+
+
+def save_models_config(config):
+    CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    CONFIG_PATH.write_text(json.dumps(config))
+
 
 class EmbeddingService:
-    def __init__(self, db, chat_model="llama3.2", embed_model="mxbai-embed-large"):
+    def __init__(self, db):
         self.db = db
-        self.chat_model = chat_model
-        self.embed_model = embed_model
+        config = load_models_config()
+        self.chat_model = config["chat_model"]
+        self.embed_model = config["embed_model"]
 
     @staticmethod
     def normalize(embedding: list[float]) -> list[float]:
@@ -59,7 +75,7 @@ class EmbeddingService:
         texts = [text for _, text in movies]
         embeddings = await self.process_texts(texts)
 
-        for (movie_id, _), embedding in zip(movies, embeddings):
+        for (movie_id, _), embedding in zip(movies, embeddings, strict=False):
             self.db.add_movie_embedding(movie_id, embedding)
 
     def find_similar_movies(self, description: str, limit: int = 5):

@@ -11,7 +11,6 @@ from nh_planner.core.config import BASE_URL, PROGRAMME_URL
 from nh_planner.core.models import Movie, Screening
 from nh_planner.services.database import Database
 
-
 logging.basicConfig(level=logging.INFO, format="%(levelname)s - %(message)s")
 logging.getLogger("asyncio").setLevel(logging.ERROR)
 
