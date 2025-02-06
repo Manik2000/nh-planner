@@ -1,10 +1,11 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import click
 
 from nh_planner.cli.commands.utils import display_table
 from nh_planner.services.database import Database
 from nh_planner.services.filters import MovieFilter
+from nh_planner.services.get_next_day_date import get_next_day_date
 
 
 @click.command()
@@ -25,11 +26,23 @@ from nh_planner.services.filters import MovieFilter
 )
 @click.option("--end_date", "-e", type=str, default=None, help="End date")
 @click.option("--use-fuzzy", is_flag=True, help="Use fuzzy search")
+@click.option(
+    "--day", type=str, default=None, help="Filter by day of week (e.g., Monday, Tue)"
+)
 def filter(
-    title, director, min_duration, max_duration, start_date, end_date, use_fuzzy
+    title, director, min_duration, max_duration, start_date, end_date, use_fuzzy, day
 ):
     """Filter movies by various criteria"""
     db = Database()
+
+    if day:
+        start_date = get_next_day_date(day)
+        if not start_date:
+            click.echo(f"Invalid day: {day}")
+            return
+        end_date = (
+            datetime.strptime(start_date, "%Y-%m-%d") + timedelta(days=1)
+        ).strftime("%Y-%m-%d")
 
     filter_params = MovieFilter(
         title=title,
