@@ -32,6 +32,3 @@ A CLI app that enables to scrape the screenings of Nowe Horyzonty cinema ([NH](h
 ├── pyproject.toml
 └── uv.lock
 ```
-
-## Installation
-
