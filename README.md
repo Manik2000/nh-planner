@@ -1,4 +1,4 @@
-# nh-planner (in progress)
+# nh-planner
 
 A CLI app that enables to scrape the screenings of Nowe Horyzonty cinema ([NH](https://www.kinonh.pl/index.s)) and then to filter the data.
 
